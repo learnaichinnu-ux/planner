@@ -1,0 +1,372 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Planner</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one calm column; weekly grid in a scroller on desktop, single-day view on phones. */
+:root {
+  --bg: #f3f5f7;
+  --surface: #ffffff;
+  --fg: #15202b;
+  --muted: #5b6874;
+  --line: #d9dfe5;
+  --accent: #2a5bd7;
+  --accent-ink: #ffffff;
+  --danger: #b4261f;
+  --now: #d6372b;
+  --c0: #2a5bd7; --c1: #0f8a6d; --c2: #c2410c; --c3: #8a3fc7; --c4: #b0870a; --c5: #cc2f6b;
+  --f-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f151b; --surface: #17202a; --fg: #e6edf3; --muted: #93a1ae; --line: #2a3643;
+    --accent: #7ea2ff; --accent-ink: #0b1220; --danger: #ff8a80; --now: #ff6b5e;
+    --c0: #7ea2ff; --c1: #4cc9a6; --c2: #ff9a5c; --c3: #c79bff; --c4: #e4c04d; --c5: #ff7fae;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f151b; --surface: #17202a; --fg: #e6edf3; --muted: #93a1ae; --line: #2a3643;
+  --accent: #7ea2ff; --accent-ink: #0b1220; --danger: #ff8a80; --now: #ff6b5e;
+  --c0: #7ea2ff; --c1: #4cc9a6; --c2: #ff9a5c; --c3: #c79bff; --c4: #e4c04d; --c5: #ff7fae;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--f-body); font-size: 15px; line-height: 1.5;
+  padding-block: 28px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 1040px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+h1 { font-family: var(--f-display); font-weight: 800; font-size: clamp(28px, 5vw, 40px); line-height: 1.05; margin: 0; text-wrap: balance; letter-spacing: -0.01em; }
+.sub { margin: 6px 0 0; color: var(--muted); max-width: 60ch; }
+.bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.bar .grow { flex: 1; }
+button { font: inherit; color: inherit; cursor: pointer; }
+.btn { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 8px 14px; font-weight: 500; }
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+.btn.danger { color: var(--danger); }
+button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface); }
+.seg button { border: 0; background: transparent; padding: 8px 14px; font-weight: 500; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.check { display: inline-flex; gap: 8px; align-items: center; color: var(--muted); }
+.notice { background: var(--surface); border: 1px dashed var(--line); border-radius: 8px; padding: 10px 14px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+.notice p { margin: 0; color: var(--muted); min-width: 0; }
+.daytabs { display: flex; gap: 6px; flex-wrap: wrap; }
+.daytabs button { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 6px 14px; font-weight: 500; }
+.daytabs button[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.scroller { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+.tt { min-width: calc(52px + var(--cols) * 104px); }
+.row { display: grid; grid-template-columns: 52px repeat(var(--cols), minmax(0, 1fr)); }
+.head { border-bottom: 1px solid var(--line); position: sticky; top: 0; }
+.head div { padding: 10px 8px; font-family: var(--f-display); font-weight: 600; text-align: center; border-left: 1px solid var(--line); }
+.head div:first-child { border-left: 0; }
+.head .today { color: var(--accent); }
+.gutter { position: relative; }
+.gutter span { position: absolute; right: 8px; transform: translateY(-50%); font-family: var(--f-mono); font-size: 11px; color: var(--muted); white-space: nowrap; }
+.col { position: relative; border-left: 1px solid var(--line);
+  background-image: repeating-linear-gradient(to bottom, transparent 0, transparent calc(var(--rh) - 1px), var(--line) calc(var(--rh) - 1px), var(--line) var(--rh)); }
+.blk { position: absolute; text-align: left; border: 0; border-left: 4px solid var(--c); border-radius: 6px; padding: 4px 7px; overflow: hidden;
+  background: color-mix(in srgb, var(--c) 18%, var(--surface)); color: var(--fg); min-height: 22px; }
+.blk:hover { background: color-mix(in srgb, var(--c) 30%, var(--surface)); }
+.blk b { display: block; font-weight: 600; line-height: 1.2; overflow-wrap: anywhere; }
+.blk small { display: block; font-family: var(--f-mono); font-size: 11px; color: var(--muted); }
+.nowline { position: absolute; left: 0; right: 0; height: 2px; background: var(--now); pointer-events: none; z-index: 2; }
+.nowline::before { content: ""; position: absolute; left: -4px; top: -3px; width: 8px; height: 8px; border-radius: 50%; background: var(--now); }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; display: flex; flex-direction: column; gap: 14px; }
+.panel h2 { font-family: var(--f-display); font-size: 20px; margin: 0; }
+.fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+.fields > div { min-width: 0; }
+label.l, .l { display: block; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; font-weight: 600; }
+input[type="text"], input[type="time"], textarea { width: 100%; font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+textarea { resize: vertical; min-height: 60px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips label { position: relative; }
+.chips input { position: absolute; opacity: 0; inset: 0; }
+.chips span { display: inline-block; border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px; background: var(--bg); font-weight: 500; }
+.chips input:checked + span { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.chips input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+.sw span { width: 30px; height: 30px; padding: 0; border-radius: 50%; background: var(--c); border: 2px solid transparent; }
+.sw input:checked + span { border-color: var(--fg); box-shadow: 0 0 0 2px var(--surface) inset; background: var(--c); color: inherit; }
+.err { color: var(--danger); min-height: 1.4em; margin: 0; }
+.foot { color: var(--muted); font-size: 13px; }
+.empty { padding: 40px 16px; text-align: center; color: var(--muted); }
+@media (prefers-reduced-motion: no-preference) { .btn, .blk { transition: background .15s, border-color .15s; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Planner</h1>
+    <p class="sub">Build a weekly timetable for classes, study, work or routines. Free, no account, and it saves on this device.</p>
+  </header>
+
+  <div class="bar">
+    <div class="seg" role="group" aria-label="View">
+      <button type="button" id="v-week" aria-pressed="true">Week</button>
+      <button type="button" id="v-day" aria-pressed="false">Day</button>
+    </div>
+    <label class="check"><input type="checkbox" id="weekend"> Show Sat &amp; Sun</label>
+    <span class="grow"></span>
+    <button type="button" class="btn" id="copy">Copy as text</button>
+    <button type="button" class="btn primary" id="add">Add block</button>
+  </div>
+
+  <div class="notice" id="examples" hidden>
+    <p>These are example blocks so you can see how it works. Clear them to start your own timetable.</p>
+    <button type="button" class="btn" id="clear-ex">Clear examples</button>
+  </div>
+
+  <div class="daytabs" id="daytabs" hidden></div>
+  <div class="scroller"><div id="grid"></div></div>
+
+  <form class="panel" id="form" hidden novalidate>
+    <h2 id="form-title">Add a block</h2>
+    <div class="fields">
+      <div style="grid-column: 1 / -1"><label class="l" for="f-title">Title</label><input type="text" id="f-title" maxlength="60" placeholder="Maths, Gym, Team meeting"></div>
+      <div><label class="l" for="f-start">Starts</label><input type="time" id="f-start" value="09:00"></div>
+      <div><label class="l" for="f-end">Ends</label><input type="time" id="f-end" value="10:00"></div>
+    </div>
+    <div><span class="l">Days</span><div class="chips" id="f-days"></div></div>
+    <div><span class="l">Colour</span><div class="chips sw" id="f-colors"></div></div>
+    <div><label class="l" for="f-note">Note (optional)</label><textarea id="f-note" maxlength="200" placeholder="Room, teacher, what to bring"></textarea></div>
+    <p class="err" id="err" role="alert"></p>
+    <div class="bar">
+      <button type="submit" class="btn primary">Save</button>
+      <button type="button" class="btn" id="cancel">Cancel</button>
+      <span class="grow"></span>
+      <button type="button" class="btn danger" id="del" hidden>Delete block</button>
+    </div>
+  </form>
+
+  <p class="foot">Tap any block to edit it. Your timetable is stored only in this browser, so it will not appear on other devices.</p>
+</div>
+
+<script>
+(function () {
+  var KEY = 'timetable.v1';
+  var DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  var FULL = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  var RH = 56;
+  var $ = function (s) { return document.querySelector(s); };
+
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function mins(t) { var p = t.split(':'); return +p[0] * 60 + +p[1]; }
+  function fmt(m) { var h = Math.floor(m / 60), mm = m % 60; return ((h % 12) || 12) + (mm ? ':' + String(mm).padStart(2, '0') : '') + (h >= 12 ? 'pm' : 'am'); }
+  function hourLabel(h) { return ((h % 12) || 12) + (h >= 12 ? ' pm' : ' am'); }
+  function uid() { return 'b' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+  function todayIdx() { return (new Date().getDay() + 6) % 7; }
+
+  var examples = [
+    { id: 'e1', title: 'Maths', days: [0, 2, 4], start: '09:00', end: '10:00', color: 0, note: 'Room 12', example: true },
+    { id: 'e2', title: 'Physics lab', days: [1, 3], start: '10:00', end: '11:30', color: 1, note: '', example: true },
+    { id: 'e3', title: 'Lunch', days: [0, 1, 2, 3, 4], start: '12:30', end: '13:15', color: 4, note: '', example: true },
+    { id: 'e4', title: 'Study block', days: [0, 1, 2, 3], start: '16:00', end: '17:30', color: 3, note: 'Library', example: true },
+    { id: 'e5', title: 'Football', days: [4], start: '15:00', end: '16:30', color: 2, note: '', example: true }
+  ];
+
+  var state = { items: null, weekend: false, view: 'week', sel: 0, editing: null };
+
+  function load() {
+    try {
+      var raw = localStorage.getItem(KEY);
+      if (raw) {
+        var d = JSON.parse(raw);
+        if (d && Array.isArray(d.items)) { state.items = d.items; state.weekend = !!d.weekend; return; }
+      }
+    } catch (e) {}
+    state.items = examples.map(function (x) { return Object.assign({}, x); });
+  }
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify({ items: state.items, weekend: state.weekend })); } catch (e) {}
+  }
+
+  function visibleDays() { return state.weekend ? [0, 1, 2, 3, 4, 5, 6] : [0, 1, 2, 3, 4]; }
+
+  function layout(list) {
+    var sorted = list.slice().sort(function (a, b) { return mins(a.start) - mins(b.start) || mins(b.end) - mins(a.end); });
+    var out = [], cluster = [], clusterEnd = -1;
+    function flush() {
+      var lanes = [];
+      cluster.forEach(function (it) {
+        var s = mins(it.start), placed = false;
+        for (var i = 0; i < lanes.length; i++) {
+          if (lanes[i] <= s) { lanes[i] = mins(it.end); it._lane = i; placed = true; break; }
+        }
+        if (!placed) { lanes.push(mins(it.end)); it._lane = lanes.length - 1; }
+      });
+      cluster.forEach(function (it) { out.push({ it: it, lane: it._lane, lanes: lanes.length }); });
+      cluster = []; clusterEnd = -1;
+    }
+    sorted.forEach(function (it) {
+      var s = mins(it.start);
+      if (cluster.length && s >= clusterEnd) flush();
+      cluster.push(it); clusterEnd = Math.max(clusterEnd, mins(it.end));
+    });
+    if (cluster.length) flush();
+    return out;
+  }
+
+  function render() {
+    var vis = visibleDays();
+    if (vis.indexOf(state.sel) < 0) state.sel = vis[0];
+    var days = state.view === 'day' ? [state.sel] : vis;
+
+    $('#v-week').setAttribute('aria-pressed', state.view === 'week');
+    $('#v-day').setAttribute('aria-pressed', state.view === 'day');
+    $('#weekend').checked = state.weekend;
+    $('#examples').hidden = !state.items.some(function (i) { return i.example; });
+
+    var tabs = $('#daytabs');
+    tabs.hidden = state.view !== 'day';
+    tabs.innerHTML = vis.map(function (d) {
+      return '<button type="button" data-day="' + d + '" aria-pressed="' + (d === state.sel) + '">' + FULL[d] + '</button>';
+    }).join('');
+
+    var shown = state.items.filter(function (i) { return i.days.some(function (d) { return days.indexOf(d) >= 0; }); });
+    var h0 = 7, h1 = 18;
+    state.items.forEach(function (i) {
+      h0 = Math.min(h0, Math.floor(mins(i.start) / 60));
+      h1 = Math.max(h1, Math.ceil(mins(i.end) / 60));
+    });
+    var H = (h1 - h0) * RH;
+    var td = todayIdx(), now = new Date(), nowM = now.getHours() * 60 + now.getMinutes();
+
+    var html = '<div class="tt" style="--cols:' + days.length + ';--rh:' + RH + 'px">';
+    html += '<div class="row head"><div></div>' + days.map(function (d) {
+      return '<div class="' + (d === td ? 'today' : '') + '">' + DAYS[d] + '</div>';
+    }).join('') + '</div>';
+    html += '<div class="row"><div class="gutter" style="height:' + H + 'px">';
+    for (var h = h0; h <= h1; h++) html += '<span style="top:' + ((h - h0) * RH) + 'px">' + (h === h0 ? '' : hourLabel(h)) + '</span>';
+    html += '</div>';
+    days.forEach(function (d) {
+      var dayItems = state.items.filter(function (i) { return i.days.indexOf(d) >= 0; });
+      html += '<div class="col" style="height:' + H + 'px">';
+      layout(dayItems).forEach(function (p) {
+        var it = p.it, top = (mins(it.start) - h0 * 60) / 60 * RH, hh = Math.max(22, (mins(it.end) - mins(it.start)) / 60 * RH - 2);
+        var w = 100 / p.lanes;
+        html += '<button type="button" class="blk" data-id="' + esc(it.id) + '" style="--c:var(--c' + (it.color % 6) + ');top:' + top + 'px;height:' + hh + 'px;left:calc(' + (p.lane * w) + '% + 2px);width:calc(' + w + '% - 4px)" title="' + esc(it.title) + (it.note ? ' — ' + esc(it.note) : '') + '">'
+          + '<b>' + esc(it.title) + '</b><small>' + fmt(mins(it.start)) + '–' + fmt(mins(it.end)) + '</small></button>';
+      });
+      if (d === td && nowM >= h0 * 60 && nowM <= h1 * 60) html += '<div class="nowline" style="top:' + ((nowM - h0 * 60) / 60 * RH) + 'px"></div>';
+      html += '</div>';
+    });
+    html += '</div></div>';
+    if (!shown.length) html += '<div class="empty">Nothing scheduled here yet. Use Add block to create your first one.</div>';
+    $('#grid').innerHTML = html;
+  }
+
+  /* form */
+  function buildForm() {
+    $('#f-days').innerHTML = DAYS.map(function (d, i) {
+      return '<label><input type="checkbox" name="day" value="' + i + '" id="fd' + i + '"><span>' + d + '</span></label>';
+    }).join('');
+    $('#f-colors').innerHTML = [0, 1, 2, 3, 4, 5].map(function (i) {
+      return '<label style="--c:var(--c' + i + ')"><input type="radio" name="color" value="' + i + '" id="fc' + i + '" aria-label="Colour ' + (i + 1) + '"><span></span></label>';
+    }).join('');
+  }
+  function openForm(item) {
+    state.editing = item ? item.id : null;
+    $('#form-title').textContent = item ? 'Edit block' : 'Add a block';
+    $('#f-title').value = item ? item.title : '';
+    $('#f-start').value = item ? item.start : '09:00';
+    $('#f-end').value = item ? item.end : '10:00';
+    $('#f-note').value = item ? (item.note || '') : '';
+    var days = item ? item.days : [state.view === 'day' ? state.sel : todayIdx() > 4 && !state.weekend ? 0 : todayIdx()];
+    for (var i = 0; i < 7; i++) $('#fd' + i).checked = days.indexOf(i) >= 0;
+    var c = item ? item.color % 6 : (state.items.length % 6);
+    $('#fc' + c).checked = true;
+    $('#del').hidden = !item;
+    $('#err').textContent = '';
+    $('#form').hidden = false;
+    $('#form').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    $('#f-title').focus({ preventScroll: true });
+  }
+  function closeForm() { $('#form').hidden = true; state.editing = null; }
+
+  $('#form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var title = $('#f-title').value.trim(), s = $('#f-start').value, en = $('#f-end').value;
+    var days = [];
+    for (var i = 0; i < 7; i++) if ($('#fd' + i).checked) days.push(i);
+    if (!title) { $('#err').textContent = 'Give the block a title.'; return; }
+    if (!s || !en) { $('#err').textContent = 'Set a start and end time.'; return; }
+    if (mins(en) <= mins(s)) { $('#err').textContent = 'The end time must be after the start time.'; return; }
+    if (!days.length) { $('#err').textContent = 'Pick at least one day.'; return; }
+    var color = +(document.querySelector('input[name="color"]:checked') || { value: 0 }).value;
+    var rec = { title: title, days: days, start: s, end: en, color: color, note: $('#f-note').value.trim() };
+    if (state.editing) {
+      state.items = state.items.map(function (it) { return it.id === state.editing ? Object.assign({ id: it.id }, rec) : it; });
+    } else {
+      rec.id = uid(); state.items.push(rec);
+    }
+    if (days.indexOf(5) >= 0 || days.indexOf(6) >= 0) state.weekend = true;
+    save(); closeForm(); render();
+  });
+  $('#cancel').addEventListener('click', closeForm);
+  $('#del').addEventListener('click', function () {
+    state.items = state.items.filter(function (it) { return it.id !== state.editing; });
+    save(); closeForm(); render();
+  });
+  $('#add').addEventListener('click', function () { openForm(null); });
+
+  /* controls */
+  $('#v-week').addEventListener('click', function () { state.view = 'week'; render(); });
+  $('#v-day').addEventListener('click', function () {
+    state.view = 'day';
+    var vis = visibleDays(); state.sel = vis.indexOf(todayIdx()) >= 0 ? todayIdx() : vis[0];
+    render();
+  });
+  $('#weekend').addEventListener('change', function (e) { state.weekend = e.target.checked; save(); render(); });
+  $('#daytabs').addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-day]'); if (!b) return;
+    state.sel = +b.dataset.day; render();
+  });
+  $('#grid').addEventListener('click', function (e) {
+    var b = e.target.closest('.blk'); if (!b) return;
+    var it = state.items.filter(function (x) { return x.id === b.dataset.id; })[0];
+    if (it) openForm(it);
+  });
+  $('#clear-ex').addEventListener('click', function () {
+    state.items = state.items.filter(function (i) { return !i.example; });
+    save(); render();
+  });
+  $('#copy').addEventListener('click', function () {
+    var lines = [];
+    for (var d = 0; d < 7; d++) {
+      var list = state.items.filter(function (i) { return i.days.indexOf(d) >= 0; }).sort(function (a, b) { return mins(a.start) - mins(b.start); });
+      if (!list.length) continue;
+      lines.push(FULL[d]);
+      list.forEach(function (i) { lines.push('  ' + fmt(mins(i.start)) + '–' + fmt(mins(i.end)) + '  ' + i.title + (i.note ? ' (' + i.note + ')' : '')); });
+      lines.push('');
+    }
+    var text = lines.join('\n').trim() || 'Timetable is empty.';
+    var btn = $('#copy');
+    function done(msg) { btn.textContent = msg; setTimeout(function () { btn.textContent = 'Copy as text'; }, 1800); }
+    try {
+      navigator.clipboard.writeText(text).then(function () { done('Copied'); }, function () { fallback(); });
+    } catch (e) { fallback(); }
+    function fallback() {
+      var ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); done('Copied'); } catch (e) { done('Select and copy failed'); }
+      document.body.removeChild(ta);
+    }
+  });
+
+  buildForm();
+  load();
+  if (window.matchMedia && window.matchMedia('(max-width: 640px)').matches) {
+    state.view = 'day';
+    var vis = visibleDays(); state.sel = vis.indexOf(todayIdx()) >= 0 ? todayIdx() : vis[0];
+  }
+  render();
+  setInterval(function () { if ($('#form').hidden) render(); }, 60000);
+})();
+</script>
+
+</body></html>
